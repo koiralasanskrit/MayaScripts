@@ -45,9 +45,15 @@ labels={'eye':'jeye',
         'l_middle':'l_middle',
         'l_ring':'l_ring'}
         
-color1 = (255/255, 255/255, 0/255)
-color2 = (135/2255, 206/255, 235/255)
+yellow = (255/255, 255/255, 0/255)
+bluish = (135/2255, 206/255, 235/255)
+red = (255/255, 0/255, 0/255)
 
+rigCond={'Fingers':False,
+        'Limbs':False,
+        'Body':False,
+        'EyeJaw':False,
+}
 
 
 """
@@ -141,13 +147,13 @@ def rigBody(x):
     cmds.delete('jcog_ctrl_const') 
     cmds.move(x,y,z,'jcog_ctrl.scalePivot', 'jcog_ctrl.rotatePivot',a=True)
     cmds.parentConstraint('jcog_ctrl','jcog',mo=True,name='jcog_ctrl_const')
-    
-    for j in ["r_", "l_"]:
-        cmds.parent(j+'fibula','jcog')
-        cmds.parent(j+'humerous','jneckBtm')        
-        for i in ["_fk","_ik"]:
-            cmds.parent(j+'fibula'+i,'jcog')
-            cmds.parent(j+'humerous'+i,'jneckBtm')    
+    if(rigCond['Limbs']==True):
+        for j in ["r_", "l_"]:
+            cmds.parent(j+'fibula','jcog')
+            cmds.parent(j+'humerous','jneckBtm')        
+            for i in ["_fk","_ik"]:
+                cmds.parent(j+'fibula'+i,'jcog')
+                cmds.parent(j+'humerous'+i,'jneckBtm')    
     jctrls=[]
     i=0
     for j in joints:
@@ -157,34 +163,33 @@ def rigBody(x):
     parentList(joints)
     parentList(jctrls)
     print(jctrls)
-    
+    rigCond['Body']=True
     
 def deleteBodyRig(x):
     parentList(joints,up=True)
-    for i in ["r_","l_"]:
-        cmds.parent(i+'fibula',w=True)
-        cmds.parent(i+'humerous',w=True) 
-        for j in ["_fk","_ik"]:
-            cmds.parent(i+'fibula'+j,w=True)
-            cmds.parent(i+'humerous'+j,w=True)
+    if(rigCond['Limbs']==True):
+        for i in ["r_","l_"]:
+            cmds.parent(i+'fibula',w=True)
+            cmds.parent(i+'humerous',w=True) 
+            for j in ["_fk","_ik"]:
+                cmds.parent(i+'fibula'+j,w=True)
+                cmds.parent(i+'humerous'+j,w=True)
     for j in joints:
         constname=j+'_ctrl_const'
         cname=j+'_ctrl'
-        cmds.delete(constname)
-        cmds.delete(cname)
+        if(rigCond['Limbs']==True):
+            cmds.delete(constname)
+            cmds.delete(cname)
+    rigCond['Body']=False
 """
 Rigging The Eye,Jaw and Face
 """
-globalY=cmds.getAttr('l_jeye.translateY')
+list=cmds.ls(selection=True)
+if(list!=[]):
+    globalY=cmds.getAttr('l_jeye.translateY')
 def rigFace():
+    list=cmds.ls(selection=True)
     print(cmds.ls(selection=True))
-    if(cmds.ls(selection=True)==[]):
-        wind=cmds.window(title="Error",wh=[55,55])
-        cmds.columnLayout(adjustableColumn=True)
-        cmds.button(label="Select an Object for its Height")
-        cmds.button(label="OK",command=("cmds.deleteUI(wind)"))
-        wind.show()
-        exit(1)
     cmds.createDisplayLayer(name='nst')
     cmds.group(em=True,name="annots")
     cmds.group(em=True,name="Eyectrls")
@@ -198,7 +203,7 @@ def rigFace():
             rectS=shape+'b'
             drawSwitch(circleName=shape,rectName=shape+'b',attr=shape+'attr',move=[0,0,0],scale=[1,1,1])
             cmds.editDisplayLayerMembers('nst',shape+'b',nr=True)
-            cmds.connectAttr(shape+'.'+shape+'attr','bodyi'+'.'+shape)
+            cmds.connectAttr(shape+'.'+shape+'attr','Eyes'+'.'+shape)
             cmds.rotate(0,'180deg',0,rectS)
             cmds.makeIdentity(rectS,a=True)
             cmds.rotate(0,0,'90deg',rectS)
@@ -260,8 +265,8 @@ def rigEye(x):
     rigJaw()
     for x in ['l_jeye','r_jeye']:
         cmds.parent(x,'jhead')
-    rigFace()
-    
+    #rigFace()
+    rigCond['EyeJaw']=True
 
 def rigJaw():
     points=[[0,0,1],[0,0,-1], [-1,0,0], [0,0,1]]
@@ -290,7 +295,7 @@ def deleteRigEye(x):
     cmds.delete("eyeRig")
     cmds.delete("mouthRig")
     cmds.delete("nst")
-
+    rigCond['EyeJaw']=False
 
 """
 Rig Limbs
@@ -300,33 +305,38 @@ Rig Limbs
 def rigFeet():
     x=0.1
     points=[[-x,0,-x], [-x,0,x],[x,0,x],[x,0,-x],[-x,0,-x]]    
-    cmds.mirrorJoint('l_toeBtm', searchReplace=('l_','r_'))        
-    cmds.mirrorJoint('l_toe', searchReplace=('l_','r_'))
-    for sd in ['l_','r_']:
-        cmds.parent(sd+'toe',sd+'toeBtm')
-        cmds.parent(sd+'toeBtm',sd+'ankle')
-        cmds.curve(degree=1,ep=points,name=sd+'toe_ctrl')   
-        cmds.parentConstraint(sd+'toeBtm',sd+'toe_ctrl',mo=False,name='del')    
-        cmds.delete('del')
-        cmds.rotate('90deg','90deg',0,sd+'toe_ctrl')
-        cmds.makeIdentity(sd+'toe_ctrl',a=True)
-        cmds.parentConstraint(sd+'toeBtm',sd+'toe_ctrl',mo=False,name='del')    
-        cmds.delete('del')        
-        cmds.scale(0.3,0.5,0.8,sd+'toe_ctrl')
-        cmds.parentConstraint(sd+'toe_ctrl',sd+'toeBtm')
-        cmds.parent(sd+'toe_ctrl',sd+'leg_ikHandle_ctrl')
-        drawColorOverride(sd+'toe_ctrl',color1)
+    #cmds.mirrorJoint('l_toeBtm', searchReplace=('l_','r_'))        
+    #cmds.mirrorJoint('l_toe', searchReplace=('l_','r_'))
+    #for sd in ['l_','r_']:
+     #   cmds.parent(sd+'toe',sd+'toeBtm')
+      #  cmds.parent(sd+'toeBtm',sd+'ankle')
+    #    cmds.curve(degree=1,ep=points,name=sd+'toe_ctrl')   
+     #   cmds.parentConstraint(sd+'toeBtm',sd+'toe_ctrl',mo=False,name='del')    
+      #  cmds.delete('del')
+       # cmds.rotate('90deg','90deg',0,sd+'toe_ctrl')
+   #     cmds.makeIdentity(sd+'toe_ctrl',a=True)
+  #      cmds.parentConstraint(sd+'toeBtm',sd+'toe_ctrl',mo=False,name='del')    
+    #    cmds.delete('del')        
+     #   cmds.scale(0.3,0.5,0.8,sd+'toe_ctrl')
+      #  cmds.parentConstraint(sd+'toe_ctrl',sd+'toeBtm')
+    #    cmds.parent(sd+'toe_ctrl',sd+'leg_ikHandle_ctrl')
+     #   drawColorOverride(sd+'toe_ctrl',color1)
 
 
 def rigLimb(org,side,strJnt):
     # SETUP
     if(org=="leg"):
-        arm = ["fibula", "femur", "ankle"]
+        arm = ["fibula", "femur", "ankle", "toeBtm", "toe"]
     if(org=="arm"):
         arm = ["humerous", "radius", "wrist"]        
     scalef = 0.2
-    color1 = (255/255, 255/255, 0/255)
-    color2 = (135/2255, 206/255, 235/255)
+    if(side=='l_'):
+        color1 = yellow
+        color2 = bluish
+    else:
+        color1 = red
+        color2 = bluish
+        
     # HELPER FUNCTIONS
     def ik_ctrl_draw():
         if(org=='leg'):
@@ -413,12 +423,13 @@ def rigLimb(org,side,strJnt):
 
 
     #IK HANDLE AND IK CONTROL     
+    ankle=2
     ikhandle=side+org+'_ikHandle'
     ikhandlectrl=side+org+'_ikHandle'+'_ctrl'
-    cmds.ikHandle(n=ikhandle, sj=ikjoints[0], ee=ikjoints[len(ikjoints)-1])
+    cmds.ikHandle(n=ikhandle, sj=ikjoints[0], ee=ikjoints[ankle])
     cmds.curve(degree=1,ep=ik_ctrl_draw(),name=ikhandlectrl)
     cmds.scale(scalef, scalef, scalef, ikhandlectrl)
-    cmds.parentConstraint(ikjoints[len(ikjoints)-1], ikhandlectrl, mo=False, name='del')
+    cmds.parentConstraint(ikjoints[ankle], ikhandlectrl, mo=False, name='del')
     cmds.delete('del')
     cmds.makeIdentity(ikhandlectrl, a=True)
     drawColorOverride(ikhandlectrl, color1)
@@ -452,9 +463,9 @@ def rigLimb(org,side,strJnt):
         cmds.parentConstraint(jointIK, jointFK, joint, name=joint+'const')
 
     matchIKFK()
-    cmds.orientConstraint(ikjoints[len(ikjoints)-1],ikhandlectrl,name='del')
+    cmds.orientConstraint(ikjoints[ankle],ikhandlectrl,name='del')
     cmds.delete('del')
-    cmds.orientConstraint(ikhandlectrl, ikjoints[len(ikjoints)-1])
+    cmds.orientConstraint(ikhandlectrl, ikjoints[ankle])
     cmds.parentConstraint(ikhandlectrl, ikhandle)
     
     #Implement IK-FK switch
@@ -533,8 +544,9 @@ def rigLimbs(x):
     cmds.mirrorJoint("l_humerous",sr=["l_","r_"],mirrorYZ=True,mb=True)
     rigLimb(org="arm",side="l_",strJnt="l_humerous")
     rigLimb(org="arm",side="r_",strJnt="r_humerous")
-    joinF('l_')
-    joinF('r_')
+    if(rigCond['Fingers']==True):
+        joinF('l_')
+        joinF('r_')
     rigLimb(org="leg",side="l_",strJnt="l_fibula")
     rigLimb(org="leg",side="r_",strJnt="r_fibula")
     rigFeet()
@@ -557,13 +569,20 @@ def rigLimbs(x):
         cmds.parent(side+"leg_ikHandle","ctrls")
     group("l_")
     group("r_")
+    rigCond["Limbs"]=True
+    
+    
+    
+    
+    
 def deleteLimbsRig(x):
     leg = ["fibula","femur","ankle"]
     arm = ["humerous","radius","wrist"]
     for side in ["l_","r_"]:
-        for s in fingers:
-            cmds.parent(side+s,w=True)
-            cmds.parent(side+s+'_ctrl',w=True)
+        if(rigCond['Fingers']==True):
+            for s in fingers:
+                cmds.parent(side+s,w=True)
+                cmds.parent(side+s+'_ctrl',w=True)
         for s in leg:
             cmds.delete(side+s+'const')
         for s in arm:
@@ -588,7 +607,7 @@ def deleteLimbsRig(x):
     cmds.parent("l_toeBtm",w=True)
     cmds.parent("l_toe",w=True)    
     cmds.delete("ctrls")
-
+    rigCond['Limbs']=False
 
 
 
@@ -614,6 +633,10 @@ def sideOfHand(s,finger,fingers):
             jctrl=s+finger+str(i)+"_ctrl"
         cmds.rename(jnt,jname)
         cmds.circle(nr=(0,1,0),name=jctrl)
+        if(s=='l_'):
+            drawColorOverride(jctrl,yellow)
+        else:
+            drawColorOverride(jctrl,red)
         ctrls.append(jctrl)
         cmds.scale(scalef*0.1,scalef*0.05,scalef*0.05,jctrl)
         cmds.parentConstraint(jname,jctrl,mo=False,name='del')
@@ -637,14 +660,14 @@ def rigFinger(x):
                  cmds.mirrorJoint("l_"+finger,sr=["l_","r_"],mirrorYZ=True,mb=True)
     hand("l_")
     hand("r_")
-
+    rigCond['Fingers']=True
 
 def deleteFingerRig(x):
     for m in fingers:
         cmds.delete("r_"+m)
         cmds.delete("r_"+m+"_ctrl")
         cmds.delete("l_"+m+"_ctrl")
-
+    rigCond['Fingers']=False
 """
 Main Function
 
@@ -694,7 +717,10 @@ def rig(x):
     rigFeet()
     cmds.deleteUI(window)
 
-   
+
+def rig(x):
+    print(rigCond)
+
 def deleteRig(x):
     print("deleteRig")
 
@@ -758,7 +784,9 @@ cmds.button(label='Delete BodyRig', command=deleteBodyRig)
 space()
 cmds.button(label='Rig Eye&Jaw', command=rigEye)
 cmds.button(label='Delete Eye&Jaw', command=deleteRigEye)
-
+space()
+cmds.button(label='Rig Face', command=rigFace)
+cmds.button(label='Delete Face')
 cmds.showWindow(window)
 
 
