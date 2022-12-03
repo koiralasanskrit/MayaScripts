@@ -48,6 +48,7 @@ labels={'eye':'jeye',
 yellow = (255/255, 255/255, 0/255)
 bluish = (135/2255, 206/255, 235/255)
 red = (255/255, 0/255, 0/255)
+purple = (25/100, 7.45/100, 100/100)
 
 rigCond={'Fingers':False,
         'Limbs':False,
@@ -135,7 +136,7 @@ def rigBody(x):
         cmds.parentConstraint(joint,cname,mo=False,name='del')
         cmds.delete('del')
         cmds.makeIdentity(cname,a=True)
-
+        drawColorOverride(cname, purple)
 
     #cmds.joint('jcog',edit=True,oj="yzx",sao="zup",ch=True)
     for joint in joints:
@@ -431,7 +432,7 @@ def rigLimb(org,side,strJnt):
     cmds.scale(scalef, scalef, scalef, ikhandlectrl)
     cmds.parentConstraint(ikjoints[ankle], ikhandlectrl, mo=False, name='del')
     cmds.delete('del')
-    cmds.makeIdentity(ikhandlectrl, a=True)
+
     drawColorOverride(ikhandlectrl, color1)
 
     #IK POLE AND IK POLE CONTROL
@@ -462,11 +463,14 @@ def rigLimb(org,side,strJnt):
     for jointIK, jointFK, joint in zip(ikjoints, fkjoints, main_joints):
         cmds.parentConstraint(jointIK, jointFK, joint, name=joint+'const')
 
-    matchIKFK()
-    cmds.orientConstraint(ikjoints[ankle],ikhandlectrl,name='del')
-    cmds.delete('del')
-    cmds.orientConstraint(ikhandlectrl, ikjoints[ankle])
+
+    cmds.makeIdentity(ikhandlectrl, a=True)
+    if(org=="leg"):    
+        cmds.rotate('90deg',0,0,ikhandlectrl)
+    cmds.makeIdentity(ikhandlectrl, a=True)
+    
     cmds.parentConstraint(ikhandlectrl, ikhandle)
+    cmds.orientConstraint(ikhandlectrl, ikjoints[ankle],mo=True)
     
     #Implement IK-FK switch
     circleName=side+org+'_switchS'
@@ -521,7 +525,50 @@ def rigLimb(org,side,strJnt):
         #cmds.hide(k)
     matchIKFK()
     
-    #Join the Fingers to the Limb
+    #Twist Effect
+    mdn=org+side+'_mD'
+    cmds.shadingNode('multiplyDivide',au=True, n=mdn)
+    if(org=="leg"):
+        cmds.connectAttr(ikhandle+'.rotateY',mdn+'.input1X')
+        cmds.setAttr(mdn+'.operation',2)
+        cmds.setAttr(mdn+'.input2X',16)
+        cmds.connectAttr(mdn+'.outputX',polectrl+'.translateX')
+    if(org=="arm"):
+        cmds.connectAttr(ikhandle+'.rotateX',mdn+'.input1X')
+        cmds.setAttr(mdn+'.operation',2)
+        cmds.setAttr(mdn+'.input2X',16)
+        cmds.connectAttr(mdn+'.outputX',polectrl+'.translateY')
+
+
+    if(org=="leg"):
+        #Roll Slider
+        cName=side+"rollC"
+        rName=side+"rollR"
+        gName=side+"roll"+"_g"
+        cmds.group(em=True,name=gName)
+        drawSwitch(circleName=cName, rectName=rName, attr="froll")
+        cmds.parent(rName,gName)
+        cmds.scale(0.2,1,1,gName)
+        if(side=="l_"):
+            cmds.move(0.3,0,0,gName)
+        else:
+            cmds.move(-0.3,0,0,gName)
+        cmds.makeIdentity(gName,a=True)
+        #Twist Slider
+        cName=side+"twistC"
+        rName=side+"twistR"
+        gName=side+"twist"+"_g"
+        cmds.group(em=True,name=gName)
+        drawSwitch(circleName=cName, rectName=rName, attr="ftwist")
+        cmds.parent(rName,gName)
+        cmds.scale(0.2,1,1,gName)
+        if(side=="l_"):
+            cmds.move(0.4,0,0,gName)
+        else:
+            cmds.move(-0.4,0,0,gName)
+        cmds.makeIdentity(gName,a=True)
+
+#Join the Fingers to the Limb
 def joinF(side):
     newF=[]
     newFc=newF
